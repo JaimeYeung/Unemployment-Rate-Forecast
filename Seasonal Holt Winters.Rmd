@@ -1,0 +1,165 @@
+---
+title: "Unrate"
+author: "James"
+date: "May 12, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(forecast)
+library(fpp)
+setwd("C:/Users/james/OneDrive/Desktop/Time Series Analysis and Forecasting/final")
+unrate <- read.csv("UNRATE.csv")
+head(unrate)
+```
+
+```{r}
+ts <- ts(unrate$UNRATE, start = c(1948, 1), frequency = 12)
+
+train <- window(ts, start = c(1950, 1), end = c(2014, 12))
+test1 <- window(ts, start = c(2015, 1), end = c(2019, 12))
+test2 <- window(ts, start = c(2015, 1), end = c(2021, 3))
+ts1 <- window(ts, start = c(1950, 1), end = c(2019, 12))
+```
+
+
+```{r}
+plot.ts(ts)
+```
+
+```{r}
+
+```
+
+```{r}
+auto.arima(ts, lambda = "auto")
+```
+
+```{r}
+plot(decompose(ts))
+```
+
+```{r}
+boxcox <- BoxCox(ts, lambda = BoxCox.lambda(train))
+plot.ts(BoxCox(ts, lambda = BoxCox.lambda(train)))
+```
+
+```{r}
+kpss.test(ts)
+```
+
+```{r}
+kpss.test(boxcox)
+```
+
+```{r}
+seadiff <- diff(boxcox, lag = 12)
+kpss.test(seadiff)
+```
+
+```{r}
+# Use this
+diff <- diff(boxcox)
+kpss.test(diff)
+```
+
+```{r}
+adf.test(ts)
+```
+
+```{r}
+fit1=hw(train,seasonal = "multiplicative", h=60)
+plot(fit1)
+checkresiduals(fit1)
+accuracy(fit1, test1)
+
+```
+
+```{r}
+fit2=hw(train,seasonal = "additive",h=60)
+plot(fit2)
+checkresiduals(fit2)
+accuracy(fit2, test1)
+```
+```{r}
+fit3=hw(train,seasonal = "multiplicative",h=60, damped = TRUE)
+plot(fit3)
+checkresiduals(fit3)
+accuracy(fit3, test1)
+```
+
+```{r}
+fit4=hw(train,seasonal = "additive",h=60, damped = TRUE)
+plot(fit4)
+checkresiduals(fit4)
+accuracy(fit4, test1)
+```
+
+
+```{r}
+library(ggplot2) 
+options(repr.plot.width=12, repr.plot.height=6)
+autoplot(ts1)+ 
+  autolayer(fit3$mean, series="Before Covid") + 
+  ggtitle("Forecasts for Unemployment") + 
+  xlab("Year") + 
+  ylab("Unemployment Rate") 
+```
+
+
+
+```{r}
+fit5=hw(train,seasonal = "multiplicative",h=75)
+plot(fit5)
+checkresiduals(fit5)
+accuracy(fit5, test2)
+
+```
+
+```{r}
+fit6=hw(train,seasonal = "additive",h=75)
+plot(fit6)
+checkresiduals(fit6)
+accuracy(fit6, test2)
+```
+
+```{r}
+fit7=hw(train,seasonal = "multiplicative",h=75,damped = TRUE )
+plot(fit7)
+checkresiduals(fit7)
+accuracy(fit7, test2)
+```
+
+```{r}
+fit8=hw(train,seasonal = "additive",h=75, damped = TRUE)
+plot(fit8)
+checkresiduals(fit8)
+accuracy(fit8, test2)
+```
+
+
+
+
+```{r}
+library(ggplot2) 
+autoplot(ts)+ 
+  autolayer(fit7$mean, series="With Covid") + 
+  ggtitle("Forecasts for Unemployment") + 
+  xlab("Year") + 
+  ylab("Unemployment Rate")
+```
+
+```{r}
+forecast(fit6, h=75)
+
+```
+
+
+```{r}
+test2
+```
+
