@@ -1,0 +1,295 @@
+---
+title: "final project"
+author: "Hao Ren"
+date: "2021/5/23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Original Dataset
+
+```{r}
+# import data
+setwd("C:/Users/hao/Desktop/Chicago/31006/final project")
+unrate <- read.csv("UNRATE.csv")
+cpi <- read.csv("CPIAUCSL.csv")
+interest <- read.csv("INTDSRUSM193N.csv")
+unrate.ts <- ts(unrate$UNRATE, start = c(1948, 1), frequency = 12)
+cpi.ts <- ts(cpi$CPIAUCSL, start = c(1947, 1), frequency = 12)
+interest.ts <- ts(interest$INTDSRUSM193N, start=c(1950,1), frequency = 12)
+```
+
+
+```{r}
+library(forecast)
+library(tseries)
+library(pander)
+library(TSA)
+library(vars)
+```
+
+```{r}
+# period restricted to 1950.1.1-2021.3.1
+unrate.ts <- window(unrate.ts, start=c(1950,1), end = c(2021,3))
+cpi.ts <- window(cpi.ts, start=c(1950,1), end = c(2021,3))
+```
+
+```{r}
+# 3. Splitting Dataset
+
+unrate.train <- window(unrate.ts, start = c(1950,1), end = c(2014,12))
+unrate.test <- window(unrate.ts, start = c(2015,1), end = c(2019,12))
+unrate.test2 = window(unrate.ts, start= c(2015,1), end = c(2021,3))
+
+cpi.train <- window(cpi.ts, start = c(1950,1), end = c(2014,12))
+cpi.test <- window(cpi.ts, start = c(2015,1), end = c(2019,12))
+
+
+interest.train <- window(interest.ts, start = c(1950,1), end = c(2014,12))
+interest.test <- window(interest.ts, start = c(2015,1), end = c(2019,12))
+
+```
+
+```{r}
+kpss.test(diff(unrate.ts,lag=1))
+
+```
+
+
+
+```{r}
+ut=BoxCox(unrate.ts, lambda= BoxCox.lambda(unrate.ts))
+kpss.test(ut)
+adf.test(ut)
+```
+```{r}
+diff <- diff(ut,lag=1)
+kpss.test(diff)
+cumsum(c(1.7851312,diff))[1:10]
+```
+```{r}
+ut[1:10]
+```
+```{r}
+ut
+```
+
+
+```{r}
+plot(decompose(unrate.ts))
+```
+
+
+```{r}
+# ETS model
+# fitting ets model using train
+ets.model <- ets(unrate.train, lambda= "auto", model="AAN")
+
+#check residuals
+checkresiduals(ets.model)
+adf.test(ets.model$residuals)
+kpss.test(ets.model$residuals)
+```
+```{r}
+# prediction accuracy
+ets.pred <- forecast(ets.model, h = 60)
+ets.error <- unrate.test - ets.pred$mean
+ets.mae <- mean(abs(ets.error))
+ets.rmse <- sqrt(mean(ets.error^2))
+ets.aicc <- ets.model$aicc
+ets.bic <- ets.model$bic
+```
+
+```{r}
+library(stats)
+var(ets.model$residuals)
+```
+```{r}
+summary(ets.model)
+```
+
+
+
+```{r}
+ets.mape <- mean(abs(ets.error)/unrate.test)
+```
+
+
+```{r}
+accuracy(ets.pred,unrate.test)
+```
+
+```{r}
+plot(ets.pred)
+```
+```{r}
+library(ggplot2) 
+unrate.plot <- window(unrate.ts, start=c(1950,1), end = c(2019,12))
+autoplot(unrate.plot)+ 
+  autolayer(ets.pred$mean, series="before Covid") + # with and before
+  ggtitle("Forecasts for Unemployment") + 
+  xlab("Year") + 
+  ylab("Unemployment Rate")
+```
+
+```{r}
+ets.pred2 <- forecast(ets.model, h =75)
+accuracy(ets.pred2,unrate.test2)
+```
+
+```{r}
+library(ggplot2) 
+unrate.plot <- window(unrate.ts, start=c(1950,1), end = c(2019,12))
+autoplot(unrate.ts)+ 
+  autolayer(ets.pred2$mean, series="with Covid") + # with and before
+  ggtitle("Forecasts for Unemployment") + 
+  xlab("Year") + 
+  ylab("Unemployment Rate")
+```
+### Var model
+
+```{r}
+ut=BoxCox(unrate.ts, lambda= 0.6446)
+unrate.ts2=diff(ut,lag=1)
+#unrate.ts2=diff(unrate.ts)
+
+cpi.ts2= diff(diff(cpi.ts,lag=1))
+interest.ts2= diff(interest.ts,lag=1)
+
+unrate.train2 <- window(unrate.ts2, start = c(1951,1), end = c(2014,12))
+unrate.test2 <- window(unrate.ts2, start = c(2015,1), end = c(2019,12))
+unrate.test2 = window(unrate.ts2, start= c(2015,1), end = c(2021,3))
+
+cpi.train2 <- window(cpi.ts2, start = c(1951,1), end = c(2014,12))
+cpi.train3 <- window(cpi.ts, start = c(1951,1), end = c(2014,12))
+cpi.test2 <- window(cpi.ts2, start = c(2015,1), end = c(2019,12))
+cpi.test3 <- window(cpi.ts, start = c(2015,1), end = c(2019,12))
+
+interest.train2 <- window(interest.ts2, start = c(1951,1), end = c(2014,12))
+interest.test2 <- window(interest.ts2, start = c(2015,1), end = c(2019,12))
+interest.train3 <- window(interest.ts, start = c(1951,1), end = c(2014,12))
+interest.test3 <- window(interest.ts, start = c(2015,1), end = c(2019,12))
+```
+
+
+```{r}
+# VAR with interest rate model
+data <- cbind(unrate.train2, interest.train3)
+VARselect(data,lag.max = 10, type = "both")$select
+var.model <- VAR(data, p =6, type = "both", season = 12)
+var.pred <- forecast(var.model, h = 60)
+
+```
+```{r}
+unrate.ts
+```
+
+
+```{r}
+#A= cumsum(c(5.6,var.pred$forecast$unrate.train$mean))[-1]
+A=cumsum(c(3.158334,var.pred$forecast$unrate.train$mean))
+A
+```
+
+```{r}
+A=InvBoxCox(A, lambda= 0.6446)[-1]
+A
+```
+
+```{r}
+var.error <- unrate.test - A
+var.mae <- mean(abs(var.error))
+var.rmse <- sqrt(mean(var.error^2))
+var.mape <- mean(abs(var.error)/unrate.test)
+```
+
+
+```{r}
+serial.test(var.model, lags.pt = 8, type= "PT.asymptotic")
+summary(var.model)
+```
+
+
+
+```{r}
+VARselect(data,lag.max = 10, type = "both")$select
+var.model2 <- VAR(data, p =6 , type = "both", season = 12)
+var.pred2 <- forecast(var.model, h = 75)
+
+```
+```{r}
+
+B=cumsum(c(3.158334,var.pred2$forecast$unrate.train$mean))[-1]
+B=InvBoxCox(B, lambda= 0.6446)
+unrate.test2 = window(unrate.ts, start= c(2015,1), end = c(2021,3))
+var.error2 <- unrate.test2 - B
+
+var.mae2 <- mean(abs(var.error2))
+var.rmse2 <- sqrt(mean(var.error2^2))
+var.mape2 <- mean(abs(var.error2)/unrate.test2)
+```
+
+
+```{r}
+plot(var.pred)
+```
+
+```{r}
+mae <- c( ets.mae, var.mae)
+rmse <- c( ets.rmse, var.rmse)
+mape <- c(ets.mape,var.mape)
+aicc <- c(ets.aicc, NA)
+bic <- c( ets.bic, NA)
+```
+
+```{r}
+checkresiduals(var.model$varresult$unrate.train$residuals)
+adf.test(var.model$varresult$unrate.train$residuals)
+kpss.test(var.model$varresult$unrate.train$residuals)
+```
+
+
+
+```{r}
+# compare three models
+df <- data.frame(mae=mae, rmse=rmse, mape=mape, aicc=aicc, bic=bic)
+rownames(df) <- c("ets","var")
+pander(df)
+```
+```{r}
+library(ggplot2) 
+D= ts(B,start=c(2015,1),frequency = 12)
+autoplot(unrate.ts)+ 
+  autolayer(D, series="With Covid") + # with and before
+  ggtitle("Forecasts for Unemployment") + 
+  xlab("Year") + 
+  ylab("Unemployment Rate")
+```
+```{r}
+library(ggplot2) 
+unrate.plot <- window(unrate.ts, start=c(1950,1), end = c(2019,12))
+C= ts(A,start=c(2015,1),frequency = 12)
+autoplot(unrate.plot)+ 
+  autolayer(C, series="before Covid") + # with and before
+  ggtitle("Forecasts for Unemployment") + 
+  xlab("Year") + 
+  ylab("Unemployment Rate")
+```
+```{r}
+B
+```
+
+
+```{r}
+# test variables
+library(lmtest)
+grangertest(cpi.train,unrate.train, order = 7)
+```
+
+```{r}
+grangertest(unrate.train,interest.train, order = 3)
+```
+
