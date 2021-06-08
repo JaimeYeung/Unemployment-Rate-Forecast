@@ -1,0 +1,131 @@
+---
+title: "Unrate"
+author: "Yang Liu"
+date: "May 12, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+unrate <- read.csv("UNRATE.csv")
+unrate <- unrate[-(1:24),]
+head(unrate)
+```
+
+```{r}
+ts <- ts(unrate$UNRATE, start = c(1950, 1), frequency = 12)
+```
+
+```{r}
+plot.ts(ts, ylab = "Unemployment Rate")
+```
+
+```{r}
+plot(decompose(ts))
+```
+
+```{r}
+plot(decompose(ts, type = "multiplicative"))
+```
+
+```{r}
+train <- window(ts, start = c(1950, 1), end = c(2014, 12))
+test1 <- window(ts, start = c(2015, 1), end = c(2019, 12))
+test2 <- window(ts, start = c(2015, 1), end = c(2021, 3))
+```
+
+```{r}
+plot.ts(train, ylab = "Unemployment Rate")
+```
+
+```{r}
+library(fpp)
+```
+
+```{r}
+kpss.test(train)
+```
+
+```{r}
+boxcox <- BoxCox(train, lambda = BoxCox.lambda(train))
+plot.ts(boxcox, ylab = "Unemployment Rate")
+```
+
+```{r}
+kpss.test(boxcox)
+```
+
+```{r}
+#
+diff <- diff(boxcox)
+kpss.test(diff)
+```
+
+```{r}
+sdiff <- diff(boxcox, lag = 12)
+kpss.test(sdiff)
+```
+
+```{r}
+arima <- auto.arima(train, lambda = "auto", seasonal = FALSE)
+summary(arima)
+```
+
+```{r}
+checkresiduals(arima)
+```
+
+```{r}
+#
+sarima <- auto.arima(train, lambda = "auto")
+summary(sarima)
+```
+
+```{r}
+checkresiduals(sarima)
+```
+
+```{r}
+forecast1 <- forecast(sarima, h = 60)
+forecast1
+```
+
+```{r}
+ts1 <- window(ts, start = c(1950, 1), end = c(2019, 12))
+```
+
+```{r}
+library(ggplot2)
+```
+
+```{r}
+autoplot(ts1) +
+  autolayer(forecast1$mean, series = "Before Covid") +
+  ggtitle("Forecasts for Unemployment") +
+  xlab("Year") +
+  ylab("Unemployment Rate")
+```
+
+```{r}
+forecast2 <- forecast(sarima, h = 75)
+forecast2
+```
+
+```{r}
+autoplot(ts) +
+  autolayer(forecast2$mean, series = "With Covid") +
+  ggtitle("Forecasts for Unemployment") +
+  xlab("Year") +
+  ylab("Unemployment Rate")
+```
+
+```{r}
+accuracy(forecast1, test1)
+```
+
+```{r}
+accuracy(forecast2, test2)
+```
